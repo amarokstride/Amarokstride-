@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<iq:manifest version="3" xmlns:iq="http://www.garmin.com/xml/connectiq">
+    <iq:application id="d41d8cd9-8f00-4204-a123-579242949e24"
+                    type="datafield"
+                    name="StridersHowlField"
+                    entry="StridersHowlApp"
+                    launcherIcon="@Drawables.LauncherIcon"
+                    minSdkVersion="3.2.0">
+        <iq:products>
+            <iq:product id="fenix7"/>
+            <iq:product id="fenix7pro"/>
+            <iq:product id="epix2"/>
+            <iq:product id="forerunner965"/>
+            <iq:product id="forerunner265"/>
+        </iq:products>
+        <iq:permissions>
+            <iq:uses-permission id="Sensor"/>
+            <iq:uses-permission id="Positioning"/>
+            <iq:uses-permission id="Attention"/>
+        </iq:permissions>
+        <iq:languages>
+            <iq:language>eng</iq:language>
+        </iq:languages>
+    </iq:application>
+</iq:manifest>

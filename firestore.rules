@@ -1,0 +1,455 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Reusable Hardened Primitives ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidPartyCode(code) {
+      return code is string && code.size() >= 6 && code.size() <= 16 && code.matches('^[A-Z0-9\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidTimestamp(ts) {
+      return ts is timestamp && ts <= request.time;
+    }
+
+    // --- Entity Validation Blueprints ---
+    function isValidUserProfile(data, userId) {
+      return data.userId is string &&
+             data.userId == userId &&
+             data.userId == request.auth.uid &&
+             data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80 &&
+             data.preferredUnit in ['MILES', 'KILOMETERS'] &&
+             data.weeklyBaselineMiles is number && data.weeklyBaselineMiles >= 1.0 && data.weeklyBaselineMiles <= 150.0 &&
+             data.corosConnected is bool &&
+             (!('garminConnected' in data) || data.garminConnected is bool) &&
+             (!('stravaConnected' in data) || data.stravaConnected is bool) &&
+             (!('pathboundConnected' in data) || data.pathboundConnected is bool) &&
+             data.healthConnectAutoExport is bool &&
+             data.currentStreakWeeks is int && data.currentStreakWeeks >= 0 && data.currentStreakWeeks <= 520 &&
+             (!('accountRole' in data) || data.accountRole in ['PRIMARY', 'PARTNER']) &&
+             (!('partnerPartyCode' in data) || (data.partnerPartyCode is string && data.partnerPartyCode.size() <= 16)) &&
+             (!('seasonTheme' in data) || data.seasonTheme in ['AUTO', 'WINTER', 'SPRING', 'SUMMER', 'FALL']) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidActivityRecord(data, userId) {
+      return data.userId is string &&
+             data.userId == userId &&
+             data.userId == request.auth.uid &&
+             data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 100 &&
+             data.activityType in ['RUN', 'HIKE', 'EQUESTRIAN'] &&
+             data.source in ['GPS', 'MANUAL', 'HEALTH_CONNECT', 'COROS', 'GARMIN', 'STRAVA', 'PATHBOUND'] &&
+             data.distanceMiles is number && data.distanceMiles >= 0.01 && data.distanceMiles <= 500.0 &&
+             data.durationSeconds is int && data.durationSeconds >= 1 && data.durationSeconds <= 604800 &&
+             data.avgPaceSecPerMile is int && data.avgPaceSecPerMile >= 120 && data.avgPaceSecPerMile <= 7200 &&
+             data.elevationGainFeet is int && data.elevationGainFeet >= 0 && data.elevationGainFeet <= 50000 &&
+             data.startedAtEpochMs is int && data.startedAtEpochMs >= 946684800000 && data.startedAtEpochMs <= 4102444800000 &&
+             (!('externalId' in data) || (data.externalId is string && data.externalId.size() <= 128)) &&
+             (!('gearId' in data) || (data.gearId is string && data.gearId.size() <= 64)) &&
+             (!('notes' in data) || (data.notes is string && data.notes.size() <= 500)) &&
+             (!('voiceTranscript' in data) || (data.voiceTranscript is string && data.voiceTranscript.size() <= 1000)) &&
+             (!('aiCoachingSummary' in data) || (data.aiCoachingSummary is string && data.aiCoachingSummary.size() <= 1200)) &&
+             (!('routePoints' in data) || (data.routePoints is list && data.routePoints.size() <= 250 && (data.routePoints.size() == 0 || data.routePoints[0] is string))) &&
+             (!('splitPacesSec' in data) || (data.splitPacesSec is list && data.splitPacesSec.size() <= 100 && (data.splitPacesSec.size() == 0 || data.splitPacesSec[0] is int))) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidWeeklyChallenge(data, userId) {
+      return data.userId is string &&
+             data.userId == userId &&
+             data.userId == request.auth.uid &&
+             data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.weekKey is string && data.weekKey.size() >= 6 && data.weekKey.size() <= 12 &&
+             data.targetMiles is number && data.targetMiles >= 1.0 && data.targetMiles <= 200.0 &&
+             data.loggedMiles is number && data.loggedMiles >= 0.0 && data.loggedMiles <= 500.0 &&
+             data.difficultyTier in ['TRAILHEAD', 'RIDGE_RUNNER', 'ALPINE_CLIMBER', 'SUMMIT_CRUSHER'] &&
+             data.progressionReason is string && data.progressionReason.size() >= 1 && data.progressionReason.size() <= 240 &&
+             data.challengeStatus in ['ACTIVE', 'COMPLETED', 'PAST'] &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidMilestoneRecord(data, userId) {
+      return data.userId is string &&
+             data.userId == userId &&
+             data.userId == request.auth.uid &&
+             data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.badgeKey is string && data.badgeKey.size() >= 1 && data.badgeKey.size() <= 50 &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 80 &&
+             data.subtitle is string && data.subtitle.size() >= 1 && data.subtitle.size() <= 160 &&
+             data.metricHighlight is string && data.metricHighlight.size() >= 1 && data.metricHighlight.size() <= 60 &&
+             data.unlockedAtEpochMs is int && data.unlockedAtEpochMs >= 946684800000 && data.unlockedAtEpochMs <= 4102444800000 &&
+             data.sharedCount is int && data.sharedCount >= 0 && data.sharedCount <= 1000 &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidTavernParty(data, partyId) {
+      return data.partyCode is string &&
+             data.partyCode == partyId &&
+             isValidPartyCode(data.partyCode) &&
+             data.creatorUid is string && data.creatorUid.size() >= 1 && data.creatorUid.size() <= 128 &&
+             data.memberUids is list && data.memberUids.size() >= 1 && data.memberUids.size() <= 2 &&
+             (!('packName' in data) || (data.packName is string && data.packName.size() <= 80)) &&
+             (!('packCrest' in data) || (data.packCrest is string && data.packCrest.size() <= 40)) &&
+             (!('weeklyGoalMiles' in data) || (data.weeklyGoalMiles is number && data.weeklyGoalMiles >= 10.0 && data.weeklyGoalMiles <= 2000.0)) &&
+             (!('isPublic' in data) || data.isPublic is bool) &&
+             data.primaryName is string && data.primaryName.size() >= 1 && data.primaryName.size() <= 80 &&
+             data.primaryTotalMiles is number && data.primaryTotalMiles >= 0.0 && data.primaryTotalMiles <= 100000.0 &&
+             data.primaryLastQuest is string && data.primaryLastQuest.size() <= 120 &&
+             (!('partnerUid' in data) || (data.partnerUid is string && data.partnerUid.size() <= 128)) &&
+             (!('partnerName' in data) || (data.partnerName is string && data.partnerName.size() <= 80)) &&
+             data.partnerTotalMiles is number && data.partnerTotalMiles >= 0.0 && data.partnerTotalMiles <= 100000.0 &&
+             (!('partnerLastQuest' in data) || (data.partnerLastQuest is string && data.partnerLastQuest.size() <= 120)) &&
+             data.cheerCount is int && data.cheerCount >= 0 && data.cheerCount <= 100000 &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    // --- User Collection Rules ---
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if false;
+
+      allow create: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       isValidUserProfile(incoming(), userId) &&
+                       incoming().keys().hasAll([
+                         'userId', 'displayName', 'preferredUnit', 'weeklyBaselineMiles',
+                         'corosConnected', 'healthConnectAutoExport', 'currentStreakWeeks',
+                         'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'displayName', 'preferredUnit', 'weeklyBaselineMiles',
+                         'corosConnected', 'garminConnected', 'stravaConnected', 'pathboundConnected',
+                         'healthConnectAutoExport', 'currentStreakWeeks',
+                         'accountRole', 'partnerPartyCode', 'seasonTheme', 'wolfCoat',
+                         'createdAt', 'updatedAt'
+                       ]);
+
+      allow update: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       isValidUserProfile(incoming(), userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       (
+                         // Action: Update preferences, integrations, partner link, wolf coat & seasonal theme
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'displayName', 'preferredUnit', 'weeklyBaselineMiles',
+                           'corosConnected', 'garminConnected', 'stravaConnected', 'pathboundConnected',
+                           'healthConnectAutoExport', 'accountRole', 'partnerPartyCode', 'seasonTheme', 'wolfCoat',
+                           'updatedAt'
+                         ]) ||
+                         // Action: Update challenge streak
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'currentStreakWeeks', 'updatedAt'
+                         ])
+                       );
+
+      allow delete: if isOwner(userId) && isValidId(userId);
+
+      // Activities subcollection
+      match /activities/{activityId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(activityId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(userId) &&
+                         isValidId(activityId) &&
+                         isValidActivityRecord(incoming(), userId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'title', 'activityType', 'source',
+                           'distanceMiles', 'durationSeconds', 'avgPaceSecPerMile',
+                           'elevationGainFeet', 'startedAtEpochMs', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'title', 'activityType', 'source',
+                           'distanceMiles', 'durationSeconds', 'avgPaceSecPerMile',
+                           'elevationGainFeet', 'startedAtEpochMs', 'externalId', 'gearId',
+                           'notes', 'voiceTranscript', 'aiCoachingSummary', 'routePoints', 'splitPacesSec',
+                           'createdAt', 'updatedAt'
+                         ]);
+
+        allow update: if isOwner(userId) &&
+                         isValidId(userId) &&
+                         isValidId(activityId) &&
+                         isValidActivityRecord(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         (
+                           // Action: Edit title, notes & voice transcript
+                           incoming().diff(existing()).affectedKeys().hasOnly(['title', 'notes', 'voiceTranscript', 'updatedAt']) ||
+                           // Action: Save AI coaching summary
+                           incoming().diff(existing()).affectedKeys().hasOnly(['aiCoachingSummary', 'updatedAt'])
+                         );
+
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(activityId);
+      }
+
+      // Weekly Challenges subcollection
+      match /challenges/{weekId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(weekId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(userId) &&
+                         isValidId(weekId) &&
+                         isValidWeeklyChallenge(incoming(), userId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'weekKey', 'targetMiles', 'loggedMiles',
+                           'difficultyTier', 'progressionReason', 'challengeStatus',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'weekKey', 'targetMiles', 'loggedMiles',
+                           'difficultyTier', 'progressionReason', 'challengeStatus',
+                           'createdAt', 'updatedAt'
+                         ]);
+
+        allow update: if isOwner(userId) &&
+                         isValidId(userId) &&
+                         isValidId(weekId) &&
+                         isValidWeeklyChallenge(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().weekKey == existing().weekKey &&
+                         incoming().createdAt == existing().createdAt &&
+                         (
+                           (
+                             existing().challengeStatus == 'ACTIVE' &&
+                             incoming().diff(existing()).affectedKeys().hasOnly([
+                               'loggedMiles', 'targetMiles', 'difficultyTier',
+                               'progressionReason', 'challengeStatus', 'updatedAt'
+                             ])
+                           ) ||
+                           (
+                             existing().challengeStatus == 'COMPLETED' &&
+                             incoming().challengeStatus == 'COMPLETED' &&
+                             incoming().diff(existing()).affectedKeys().hasOnly([
+                               'loggedMiles', 'updatedAt'
+                             ])
+                           )
+                         );
+
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(weekId);
+      }
+
+      // Milestones subcollection
+      match /milestones/{milestoneId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(milestoneId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(userId) &&
+                         isValidId(milestoneId) &&
+                         isValidMilestoneRecord(incoming(), userId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'badgeKey', 'title', 'subtitle', 'metricHighlight',
+                           'unlockedAtEpochMs', 'sharedCount', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'badgeKey', 'title', 'subtitle', 'metricHighlight',
+                           'unlockedAtEpochMs', 'sharedCount', 'createdAt', 'updatedAt'
+                         ]);
+
+        allow update: if isOwner(userId) &&
+                         isValidId(userId) &&
+                         isValidId(milestoneId) &&
+                         isValidMilestoneRecord(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().badgeKey == existing().badgeKey &&
+                         incoming().createdAt == existing().createdAt &&
+                         (
+                           incoming().diff(existing()).affectedKeys().hasOnly(['sharedCount', 'updatedAt'])
+                         );
+
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(milestoneId);
+      }
+    }
+
+    function isValidChatMessage(data) {
+      return data.senderUid is string &&
+             data.senderUid == request.auth.uid &&
+             data.senderUid.size() >= 1 && data.senderUid.size() <= 128 &&
+             data.senderName is string && data.senderName.size() >= 1 && data.senderName.size() <= 80 &&
+             data.senderWolfCoat in ['TIMBER_GREY', 'ARCTIC_WHITE', 'OBSIDIAN_BLACK', 'RED_TIMBER', 'SILVER_FROST'] &&
+             data.senderPackClass is string && data.senderPackClass.size() >= 1 && data.senderPackClass.size() <= 60 &&
+             data.text is string && data.text.size() >= 1 && data.text.size() <= 400 &&
+             data.sentAtEpochMs is int && data.sentAtEpochMs >= 946684800000 && data.sentAtEpochMs <= 4102444800000 &&
+             isValidTimestamp(data.createdAt);
+    }
+
+    // --- Public Tavern Hall Chat (authenticated striders only) ---
+    match /public_chat/{messageId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn() &&
+                       isValidId(messageId) &&
+                       isValidChatMessage(incoming()) &&
+                       incoming().keys().hasAll([
+                         'senderUid', 'senderName', 'senderWolfCoat', 'senderPackClass',
+                         'text', 'sentAtEpochMs', 'createdAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'senderUid', 'senderName', 'senderWolfCoat', 'senderPackClass',
+                         'text', 'sentAtEpochMs', 'createdAt'
+                       ]);
+      allow update: if false;
+      allow delete: if isSignedIn() && existing().senderUid == request.auth.uid;
+    }
+
+    // --- Partner Wolf Pack Parties & Private Pack Chat ---
+    match /parties/{partyId} {
+      allow get: if isSignedIn() && isValidPartyCode(partyId);
+      allow list: if false;
+
+      allow create: if isSignedIn() &&
+                       isValidPartyCode(partyId) &&
+                       isValidTavernParty(incoming(), partyId) &&
+                       incoming().creatorUid == request.auth.uid &&
+                       incoming().memberUids.size() == 1 &&
+                       incoming().memberUids[0] == request.auth.uid &&
+                       incoming().keys().hasAll([
+                         'partyCode', 'creatorUid', 'memberUids',
+                         'primaryName', 'primaryTotalMiles', 'primaryLastQuest',
+                         'partnerTotalMiles', 'cheerCount', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'partyCode', 'creatorUid', 'memberUids',
+                         'packName', 'packCrest', 'weeklyGoalMiles', 'isPublic',
+                         'primaryName', 'primaryTotalMiles', 'primaryLastQuest',
+                         'partnerUid', 'partnerName', 'partnerTotalMiles', 'partnerLastQuest',
+                         'cheerCount', 'createdAt', 'updatedAt'
+                       ]);
+
+      allow update: if isSignedIn() &&
+                       isValidPartyCode(partyId) &&
+                       isValidTavernParty(incoming(), partyId) &&
+                       incoming().partyCode == existing().partyCode &&
+                       incoming().creatorUid == existing().creatorUid &&
+                       incoming().createdAt == existing().createdAt &&
+                       (
+                         (
+                           request.auth.uid in existing().memberUids &&
+                           incoming().memberUids == existing().memberUids &&
+                           incoming().diff(existing()).affectedKeys().hasOnly([
+                             'packName', 'primaryName', 'primaryTotalMiles', 'primaryLastQuest',
+                             'partnerName', 'partnerTotalMiles', 'partnerLastQuest',
+                             'cheerCount', 'updatedAt'
+                           ])
+                         ) ||
+                         (
+                           existing().memberUids.size() == 1 &&
+                           !(request.auth.uid in existing().memberUids) &&
+                           incoming().memberUids.size() == 2 &&
+                           existing().memberUids[0] in incoming().memberUids &&
+                           request.auth.uid in incoming().memberUids &&
+                           incoming().partnerUid == request.auth.uid &&
+                           incoming().diff(existing()).affectedKeys().hasOnly([
+                             'memberUids', 'partnerUid', 'partnerName', 'partnerTotalMiles', 'partnerLastQuest', 'updatedAt'
+                           ])
+                         )
+                       );
+
+      allow delete: if isSignedIn() && existing().creatorUid == request.auth.uid;
+
+      // Private Pack Chat subcollection — strictly restricted to Pack members
+      match /messages/{messageId} {
+        function isPackMember() {
+          return isSignedIn() &&
+                 exists(/databases/$(database)/documents/parties/$(partyId)) &&
+                 request.auth.uid in get(/databases/$(database)/documents/parties/$(partyId)).data.memberUids;
+        }
+
+        allow get, list: if isPackMember();
+        allow create: if isPackMember() &&
+                         isValidId(messageId) &&
+                         isValidChatMessage(incoming()) &&
+                         incoming().keys().hasAll([
+                           'senderUid', 'senderName', 'senderWolfCoat', 'senderPackClass',
+                           'text', 'sentAtEpochMs', 'createdAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'senderUid', 'senderName', 'senderWolfCoat', 'senderPackClass',
+                           'text', 'sentAtEpochMs', 'createdAt'
+                         ]);
+        allow update: if false;
+        allow delete: if isPackMember() && existing().senderUid == request.auth.uid;
+      }
+    }
+
+    // --- Live Solo Strider Ranking Board (owner-write, authenticated real-time read) ---
+    match /solo_rankings/{userId} {
+      allow get, list: if isSignedIn();
+      allow create, update: if isOwner(userId) &&
+                               isValidId(userId) &&
+                               incoming().userId == request.auth.uid &&
+                               incoming().displayName is string && incoming().displayName.size() >= 1 && incoming().displayName.size() <= 80 &&
+                               incoming().wolfCoat in ['TIMBER_GREY', 'ARCTIC_WHITE', 'OBSIDIAN_BLACK', 'RED_TIMBER', 'SILVER_FROST'] &&
+                               incoming().packClass is string && incoming().packClass.size() >= 1 && incoming().packClass.size() <= 60 &&
+                               incoming().level is int && incoming().level >= 1 && incoming().level <= 500 &&
+                               incoming().totalMiles is number && incoming().totalMiles >= 0.0 && incoming().totalMiles <= 100000.0 &&
+                               incoming().weeklyMiles is number && incoming().weeklyMiles >= 0.0 && incoming().weeklyMiles <= 2000.0 &&
+                               isValidTimestamp(incoming().updatedAt) &&
+                               incoming().keys().hasAll([
+                                 'userId', 'displayName', 'wolfCoat', 'packClass', 'level', 'totalMiles', 'weeklyMiles', 'updatedAt'
+                               ]) &&
+                               incoming().keys().hasOnly([
+                                 'userId', 'displayName', 'wolfCoat', 'packClass', 'level', 'totalMiles', 'weeklyMiles', 'updatedAt'
+                               ]);
+      allow delete: if isOwner(userId);
+    }
+
+    // --- Live Wolf Pack Ranking Board (pack-member write, authenticated real-time read) ---
+    match /pack_rankings/{partyCode} {
+      function isRankPackMember() {
+        return isSignedIn() &&
+               exists(/databases/$(database)/documents/parties/$(partyCode)) &&
+               request.auth.uid in get(/databases/$(database)/documents/parties/$(partyCode)).data.memberUids;
+      }
+
+      allow get, list: if isSignedIn();
+      allow create, update: if isRankPackMember() &&
+                               isValidPartyCode(partyCode) &&
+                               incoming().partyCode == partyCode &&
+                               incoming().packName is string && incoming().packName.size() >= 1 && incoming().packName.size() <= 80 &&
+                               incoming().memberCount is int && incoming().memberCount >= 1 && incoming().memberCount <= 20 &&
+                               incoming().combinedMiles is number && incoming().combinedMiles >= 0.0 && incoming().combinedMiles <= 500000.0 &&
+                               incoming().leadWolfCoat in ['TIMBER_GREY', 'ARCTIC_WHITE', 'OBSIDIAN_BLACK', 'RED_TIMBER', 'SILVER_FROST'] &&
+                               isValidTimestamp(incoming().updatedAt) &&
+                               incoming().keys().hasAll([
+                                 'partyCode', 'packName', 'memberCount', 'combinedMiles', 'leadWolfCoat', 'updatedAt'
+                               ]) &&
+                               incoming().keys().hasOnly([
+                                 'partyCode', 'packName', 'memberCount', 'combinedMiles', 'leadWolfCoat', 'updatedAt'
+                               ]);
+      allow delete: if isRankPackMember();
+    }
+  }
+}

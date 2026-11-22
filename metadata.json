@@ -1,0 +1,6 @@
+{
+  "name": "Striders Howl",
+  "description": "Fantasy wolf-pack running, hiking, and equestrian endurance quest tracker with solo & partner party logins, custom quest trail designer with COROS GPX export, 3D grey wolf mascot, AI training plans & route analysis, voice coaching, offline topo maps, and Health Connect/COROS/Garmin/Strava sync.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

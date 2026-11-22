@@ -1,0 +1,163 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Authenticated adventurer preferences, baseline mileage, integration flags, partner party link, seasonal theme, and streak.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Firebase Auth UID matching document ID." },
+        "displayName": { "type": "string", "description": "Adventurer display name (1-80 chars)." },
+        "preferredUnit": { "type": "string", "enum": ["MILES", "KILOMETERS"], "description": "Preferred distance unit." },
+        "weeklyBaselineMiles": { "type": "number", "description": "Starting weekly mileage baseline in miles (1.0-150.0)." },
+        "corosConnected": { "type": "boolean", "description": "Whether COROS OAuth or GPX sync is enabled." },
+        "garminConnected": { "type": "boolean", "description": "Optional: whether Garmin Connect sync is enabled." },
+        "stravaConnected": { "type": "boolean", "description": "Optional: whether Strava sync is enabled." },
+        "pathboundConnected": { "type": "boolean", "description": "Optional: whether Pathbound companion link is enabled." },
+        "healthConnectAutoExport": { "type": "boolean", "description": "Whether new workouts auto-export to Health Connect." },
+        "currentStreakWeeks": { "type": "integer", "description": "Consecutive completed weekly quests." },
+        "accountRole": { "type": "string", "enum": ["PRIMARY", "PARTNER"], "description": "Optional: whether signed in as Primary or Partner adventurer." },
+        "partnerPartyCode": { "type": "string", "description": "Optional: shared 6-16 char Tavern Party invite code linking both partners." },
+        "seasonTheme": { "type": "string", "enum": ["AUTO", "WINTER", "SPRING", "SUMMER", "FALL"], "description": "Optional: seasonal animation preference." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp." }
+      },
+      "required": [
+        "userId",
+        "displayName",
+        "preferredUnit",
+        "weeklyBaselineMiles",
+        "corosConnected",
+        "healthConnectAutoExport",
+        "currentStreakWeeks",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ActivityRecord": {
+      "title": "ActivityRecord",
+      "description": "A recorded or imported run, trail hike, or equestrian endurance ride with pace, elevation, splits, coaching tip, voice note transcript, gear link, and GPS route.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner Firebase Auth UID." },
+        "title": { "type": "string", "description": "Quest title (1-100 chars)." },
+        "activityType": { "type": "string", "enum": ["RUN", "HIKE", "EQUESTRIAN"], "description": "Run, trail hike, or equestrian ride." },
+        "source": { "type": "string", "enum": ["GPS", "MANUAL", "HEALTH_CONNECT", "COROS", "GARMIN", "STRAVA", "PATHBOUND"], "description": "Origin of the activity." },
+        "distanceMiles": { "type": "number", "description": "Distance in miles (0.01-500.0)." },
+        "durationSeconds": { "type": "integer", "description": "Moving duration in seconds (1-604800)." },
+        "avgPaceSecPerMile": { "type": "integer", "description": "Average pace in seconds per mile (120-7200)." },
+        "elevationGainFeet": { "type": "integer", "description": "Total ascent in feet (0-50000)." },
+        "startedAtEpochMs": { "type": "integer", "description": "Activity start time in epoch milliseconds." },
+        "externalId": { "type": "string", "description": "Optional deduplication ID from external fitness services." },
+        "gearId": { "type": "string", "description": "Optional shoe or equestrian saddle ID (1-64 chars)." },
+        "notes": { "type": "string", "description": "Optional user notes (0-500 chars)." },
+        "voiceTranscript": { "type": "string", "description": "Optional transcribed audio trail note (0-1000 chars)." },
+        "aiCoachingSummary": { "type": "string", "description": "Optional encouraging AI pace insight (0-1200 chars)." },
+        "routePoints": { "type": "array", "description": "Optional bounded list (<=250) of encoded lat,lon,ele strings." },
+        "splitPacesSec": { "type": "array", "description": "Optional bounded list (<=100) of per-mile split seconds." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp." }
+      },
+      "required": [
+        "userId",
+        "title",
+        "activityType",
+        "source",
+        "distanceMiles",
+        "durationSeconds",
+        "avgPaceSecPerMile",
+        "elevationGainFeet",
+        "startedAtEpochMs",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "WeeklyChallenge": {
+      "title": "WeeklyChallenge",
+      "description": "Progressive weekly mileage quest derived from past performance.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "weekKey": { "type": "string" },
+        "targetMiles": { "type": "number" },
+        "loggedMiles": { "type": "number" },
+        "difficultyTier": { "type": "string", "enum": ["TRAILHEAD", "RIDGE_RUNNER", "ALPINE_CLIMBER", "SUMMIT_CRUSHER"] },
+        "progressionReason": { "type": "string" },
+        "challengeStatus": { "type": "string", "enum": ["ACTIVE", "COMPLETED", "PAST"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "weekKey", "targetMiles", "loggedMiles", "difficultyTier", "progressionReason", "challengeStatus", "createdAt", "updatedAt"]
+    },
+    "MilestoneRecord": {
+      "title": "MilestoneRecord",
+      "description": "Shareable D&D-themed achievement badge unlocked by the adventurer.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "badgeKey": { "type": "string" },
+        "title": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "metricHighlight": { "type": "string" },
+        "unlockedAtEpochMs": { "type": "integer" },
+        "sharedCount": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "badgeKey", "title", "subtitle", "metricHighlight", "unlockedAtEpochMs", "sharedCount", "createdAt", "updatedAt"]
+    },
+    "TavernParty": {
+      "title": "TavernParty",
+      "description": "Shared 2-member party linking Primary and Partner Google accounts for combined mileage and encouragement.",
+      "type": "object",
+      "properties": {
+        "partyCode": { "type": "string", "description": "Unique 6-16 char alphanumeric invite code matching document ID." },
+        "creatorUid": { "type": "string", "description": "UID of the adventurer who created the party." },
+        "memberUids": { "type": "array", "description": "1 to 2 Firebase Auth UIDs belonging to this partner party." },
+        "primaryName": { "type": "string" },
+        "primaryTotalMiles": { "type": "number" },
+        "primaryLastQuest": { "type": "string" },
+        "partnerUid": { "type": "string" },
+        "partnerName": { "type": "string" },
+        "partnerTotalMiles": { "type": "number" },
+        "partnerLastQuest": { "type": "string" },
+        "cheerCount": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "partyCode",
+        "creatorUid",
+        "memberUids",
+        "primaryName",
+        "primaryTotalMiles",
+        "primaryLastQuest",
+        "partnerTotalMiles",
+        "cheerCount",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "User-scoped adventurer profile, partner role, seasonal theme, and integration preferences."
+    },
+    "/users/{userId}/activities/{activityId}": {
+      "schema": { "$ref": "#/entities/ActivityRecord" },
+      "description": "User-scoped runs, hikes, and equestrian endurance rides."
+    },
+    "/users/{userId}/challenges/{weekId}": {
+      "schema": { "$ref": "#/entities/WeeklyChallenge" },
+      "description": "User-scoped progressive weekly quests."
+    },
+    "/users/{userId}/milestones/{milestoneId}": {
+      "schema": { "$ref": "#/entities/MilestoneRecord" },
+      "description": "User-scoped shareable D&D achievements."
+    },
+    "/parties/{partyId}": {
+      "schema": { "$ref": "#/entities/TavernParty" },
+      "description": "Shared 2-person Tavern Party linking primary and partner accounts via invite code."
+    }
+  }
+}

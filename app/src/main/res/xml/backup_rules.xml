@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Exclude sensitive OAuth tokens, emergency SOS contacts, and Firebase App Check prefs from cloud backup -->
+    <exclude domain="sharedpref" path="striders_oauth_tokens_v1.xml" />
+    <exclude domain="sharedpref" path="striders_howl_sos_prefs.xml" />
+    <exclude domain="sharedpref" path="com.google.firebase.appcheck.debug.store.xml" />
+</full-backup-content>
